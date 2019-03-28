@@ -6,13 +6,11 @@
 
     try 
     {
-
         # 1 Get User Credentials
         if($Cred_GlobalAdmin -eq $null) 
         {
             $Global:Cred_GlobalAdmin = (Get-Credential -Message "Enter your Global Admin Credentials")
         }
-
 
         # 2. Installing Modules
         try
@@ -29,12 +27,10 @@
             Write-Host("ERROR: ") -NoNewline -ForegroundColor Red
             write-Host($_.Exception.Message)
         }    
-   
-        
+           
         # 3. Connecting to Online Services
         try
         {
-
             # 3.1 Office 365 - MSOnline
             try
             {
@@ -48,12 +44,12 @@
                 Write-Host(" - Failed")
             }    
 
-
             # 3.2 Exchange Online
             try
             {
                 Write-Host("- Connecting to Exchange Online") -NoNewline                
-                $Global:EXCH =  New-PSSession -Credential $Cred_GlobalAdmin -ConfigurationName Microsoft.Exchange -Authentication Basic `                                -ConnectionUri https://outlook.office365.com/powershell-liveid/ -AllowRedirection -ErrorAction Stop
+                $Global:EXCH =  New-PSSession -Credential $Cred_GlobalAdmin -ConfigurationName Microsoft.Exchange -Authentication Basic `
+                                -ConnectionUri https://outlook.office365.com/powershell-liveid/ -AllowRedirection -ErrorAction Stop
                 
                 Import-PSSession $EXCH -AllowClobber -DisableNameChecking | Out-Null
                 Write-Host(" - Completed")
@@ -62,7 +58,6 @@
             {
                 Write-Host(" - Failed")
             } 
-              
 
             # 3.3 SharePoint Online
             try
@@ -74,15 +69,12 @@
             catch
             {
                 Write-Host(" - Failed")
-            }   
-            
-                    
+            }         
         }
         catch
         {
             Write-Host("Something went wrong when connecting to online services.")
         }
-
     }
     catch
     {
@@ -93,21 +85,16 @@
     {
         Write-Host("`n")
     }
-   
 }
-
-
 function Disconnect-Services()
 {
     Write-Host("----- Disconnecting from Online Services -----")
 
     try
     {
-
         # 1. Disconnecting from Online Services
         try
         {
-
             # 1.1 Remove Variables
             if(Get-Variable Cred_GlobalAdmin) 
             {
@@ -119,7 +106,6 @@ function Disconnect-Services()
                 Remove-Variable TenantName -Scope "Global"
             }
 
-
             # 1.2 Office 365 - MSOnline
             try
             {
@@ -127,8 +113,7 @@ function Disconnect-Services()
                 
                 $fakeusername = "fake"
                 $fakepassword = ConvertTo-SecureString "fake" -AsPlainText -Force
-                $fakeuser = New-Object -TypeName pscredential -ArgumentList $fakeusername,$fakepassword
-                
+                $fakeuser = New-Object -TypeName pscredential -ArgumentList $fakeusername,$fakepassword   
                 
                 Connect-MsolService -Credential $fakeuser -ErrorAction SilentlyContinue -WarningAction SilentlyContinue                 
                 Write-Host(" - Completed")
@@ -137,7 +122,6 @@ function Disconnect-Services()
             {
                 Write-Host(" - Failed")
             }    
-
 
             # 2.3 Exchange Online
             try
@@ -150,7 +134,6 @@ function Disconnect-Services()
             {
                 Write-Host(" - Failed")
             } 
-              
 
             # 2.4 SharePoint Online
             try
@@ -163,7 +146,6 @@ function Disconnect-Services()
             {
                 Write-Host(" - Failed")
             } 
-            
         }
         catch
         {
@@ -182,15 +164,12 @@ function Disconnect-Services()
     }
 }
 
-
 function Create-User($CsvPath, $Delimiter = ",", $StandardPassword = "BytMig123", $UsageLocation = "SE", $DomainName)
 {
     Write-Host("----- Creating new Office 365 User -----")
 
     try
-    {
-
-    
+    {   
        if($DomainName -eq $null) 
        {
            $DomainName = (Get-MsolDomain | where { $_.IsDefault -eq $true }).Name
@@ -222,16 +201,37 @@ function Create-User($CsvPath, $Delimiter = ",", $StandardPassword = "BytMig123"
                     # Om det inte finns en användare, skapa användaren (! = inte)
                     if(!(Get-MsolUser -UserPrincipalName $UserPrincipalName -ErrorAction SilentlyContinue))
                     {
-                        try                         {                            Write-Host("- Creating user $DisplayName - $UserPrincipalName") -NoNewline                                                       $u = New-MsolUser `                                -UserPrincipalName $UserPrincipalName `                                -DisplayName $DisplayName `                                -FirstName $FirstName `                                -LastName $LastName `                                -Department $Department `                                -Title $JobTitle `                                -PhoneNumber $Phone `                                -MobilePhone $Mobile `
+                        try 
+                        {
+                            Write-Host("- Creating user $DisplayName - $UserPrincipalName") -NoNewline   
+                        
+                            $u = New-MsolUser `
+                                -UserPrincipalName $UserPrincipalName `
+                                -DisplayName $DisplayName `
+                                -FirstName $FirstName `
+                                -LastName $LastName `
+                                -Department $Department `
+                                -Title $JobTitle `
+                                -PhoneNumber $Phone `
+                                -MobilePhone $Mobile `
                                 -StreetAddress $PostalAddress `
-                                -PostalCode $PostalCode `                                -City $City `
-                                -Country $Country `                                -AlternateEmailAddresses $PersonalEmail `                                -PasswordNeverExpires $true `
+                                -PostalCode $PostalCode `
+                                -City $City `
+                                -Country $Country `
+                                -AlternateEmailAddresses $PersonalEmail `
+                                -PasswordNeverExpires $true `
                                 -Password $StandardPassword `
-                                -StrongPasswordRequired $true `                                -ForceChangePassword $true `
+                                -StrongPasswordRequired $true `
+                                -ForceChangePassword $true `
                                 -UsageLocation $UsageLocation `
                                 -ErrorAction Stop
                         
-                            Write-Host(" - Completed")                        }                        catch                        {                            Write-Host(" - Failed")                        }                                                    
+                            Write-Host(" - Completed")
+                        }
+                        catch
+                        {
+                            Write-Host(" - Failed")
+                        }                                               
                     }
                     else
                     {
@@ -258,14 +258,9 @@ function Create-User($CsvPath, $Delimiter = ",", $StandardPassword = "BytMig123"
                     Remove-Variable Country -ErrorAction SilentlyContinue
                     Remove-Variable DisplayName -ErrorAction SilentlyContinue
                     Remove-Variable UserPrincipalName -ErrorAction SilentlyContinue
-                }
-                
+                }             
             }
-             
        } 
-      
-        
-
     }
     catch
     {
@@ -286,14 +281,12 @@ function Create-User($CsvPath, $Delimiter = ",", $StandardPassword = "BytMig123"
     }
 }
 
-
 function Delete-User($DeleteAll = $false, $RemoveRecycleBin = $false)
 {
     Write-Host("----- Delete Office 365 User -----")
 
     try
     {
-
         # Delete Office 365 User
         try
         {
@@ -318,7 +311,6 @@ function Delete-User($DeleteAll = $false, $RemoveRecycleBin = $false)
             {
                 Delete-FromRecycleBin
             }
-
         }
         catch
         {
@@ -337,18 +329,14 @@ function Delete-User($DeleteAll = $false, $RemoveRecycleBin = $false)
     }
 }
 
-
 function Delete-FromRecycleBin()
 {
     Write-Host("----- Delete from Recycle Bin -----")
-
     try
     {
-
         # Delete from Recycle Binr
         try
         {
-
             try
             {
                 Write-Host("- Deleting the recycle bin") -NoNewline   

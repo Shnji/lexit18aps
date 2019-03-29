@@ -19,13 +19,17 @@
             #Install-Module MSOnline -ErrorAction stop -WarningAction SilentlyContinue -Force
             #Install-Module Microsoft.Online.SharePoint.Powershell -ErrorAction Stop -WarningAction SilentlyContinue -Force
             #Install-Module AzureAD -ErrorAction Stop -WarningAction SilentlyContinue -Force
-            Write-Host(" - Completed")
+            Write-Host(" - Completed") -ForegroundColor Green
         }
         catch 
         {
-            Write-Host(" - Failed")
+            Write-Host(" - Failed") -ForegroundColor Red
             Write-Host("ERROR: ") -NoNewline -ForegroundColor Red
             write-Host($_.Exception.Message)
+        }
+        finally
+        {
+            Write-Host("`n")
         }    
            
         # 3. Connecting to Online Services
@@ -37,11 +41,11 @@
                 Write-Host("- Connecting to Microsoft Online Services") -NoNewline  
                 Connect-MsolService -Credential $Cred_GlobalAdmin -ErrorAction Stop
                 $Global:TenantName = ((Get-MsolAccountSku).AccountSkuId).split(":")[0]
-                Write-Host(" - Completed")
+                Write-Host(" - Completed") -ForegroundColor Green
             }
             catch
             {
-                Write-Host(" - Failed")
+                Write-Host(" - Failed") -ForegroundColor Red
             }    
 
             # 3.2 Exchange Online
@@ -52,11 +56,11 @@
                                 -ConnectionUri https://outlook.office365.com/powershell-liveid/ -AllowRedirection -ErrorAction Stop
                 
                 Import-PSSession $EXCH -AllowClobber -DisableNameChecking | Out-Null
-                Write-Host(" - Completed")
+                Write-Host(" - Completed") -ForegroundColor Green
             }
             catch
             {
-                Write-Host(" - Failed")
+                Write-Host(" - Failed") -ForegroundColor Red
             } 
 
             # 3.3 SharePoint Online
@@ -64,11 +68,11 @@
             {
                 Write-Host("- Connecting to SharePoint Online") -NoNewline  
                 Connect-SPOService -Credential $Cred_GlobalAdmin -Url "https://$TenantName-admin.sharepoint.com" -ErrorAction stop
-                Write-Host(" - Completed")
+                Write-Host(" - Completed") -ForegroundColor Green
             }
             catch
             {
-                Write-Host(" - Failed")
+                Write-Host(" - Failed") -ForegroundColor Red
             }         
         }
         catch
@@ -116,11 +120,11 @@ function Disconnect-Services()
                 $fakeuser = New-Object -TypeName pscredential -ArgumentList $fakeusername,$fakepassword   
                 
                 Connect-MsolService -Credential $fakeuser -ErrorAction SilentlyContinue -WarningAction SilentlyContinue                 
-                Write-Host(" - Completed")
+                Write-Host(" - Completed") -ForegroundColor Green
             }
             catch
             {
-                Write-Host(" - Failed")
+                Write-Host(" - Failed") -ForegroundColor Red
             }    
 
             # 2.3 Exchange Online
@@ -128,11 +132,11 @@ function Disconnect-Services()
             {
                 Write-Host("- Disconnecting from Exchange Online") -NoNewline   
                 Remove-PSSession $EXCH -ErrorAction Stop -WarningAction SilentlyContinue             
-                Write-Host(" - Completed")
+                Write-Host(" - Completed") -ForegroundColor Green
             }
             catch
             {
-                Write-Host(" - Failed")
+                Write-Host(" - Failed") -ForegroundColor Red
             } 
 
             # 2.4 SharePoint Online
@@ -140,11 +144,11 @@ function Disconnect-Services()
             {
                 Write-Host("- Disconnecting from SharePoint Online") -NoNewline  
                 Disconnect-SPOService -ErrorAction Stop -WarningAction SilentlyContinue
-                Write-Host(" - Completed")
+                Write-Host(" - Completed") -ForegroundColor Green
             }
             catch
             {
-                Write-Host(" - Failed")
+                Write-Host(" - Failed") -ForegroundColor Red
             } 
         }
         catch
@@ -226,15 +230,16 @@ function Create-User($CsvPath, $Delimiter = ",", $StandardPassword = "BytMig123"
                                 -UsageLocation $UsageLocation `
                                 -ErrorAction Stop
                         
-                            Write-Host(" - Completed")
+                            Write-Host(" - Completed") -ForegroundColor Green
                         }
                         catch
                         {
-                            Write-Host(" - Failed")
+                            Write-Host(" - Failed") -ForegroundColor Red
                         }                                               
                     }
                     else
                     {
+                        Write-Host("- Duplicate: ") -NoNewline -ForegroundColor Yellow
                         Write-Host("User with UserPrincipalName '$UserPrincipalName' already exits.")
                     }
                 }
@@ -299,11 +304,15 @@ function Delete-User($DeleteAll = $false, $RemoveRecycleBin = $false)
                     Get-MsolUser -All | where { -not (Get-MsolUserRole -ObjectId $_.ObjectId | where { $_.Name -eq "Company Administrator" }) } |
                     foreach { Remove-MsolUser -ObjectId $_.ObjectId -Force }
                 
-                    Write-Host(" - Completed")
+                    Write-Host(" - Completed") -ForegroundColor Green
                 }
                 catch 
                 {
-                    Write-Host(" - Failed")
+                    Write-Host(" - Failed") -ForegroundColor Red
+                }
+                finally
+                {
+                    Write-Host("`n")
                 }
             }
 
@@ -339,15 +348,15 @@ function Delete-FromRecycleBin()
         {
             try
             {
-                Write-Host("- Deleting the recycle bin") -NoNewline   
+                Write-Host("- Deleting objects in the recycle bin") -NoNewline   
 
                 Get-MsolUser -ReturnDeletedUsers | Remove-MsolUser -RemoveFromRecycleBin -Force
                 
-                Write-Host(" - Completed")
+                Write-Host(" - Completed") -ForegroundColor Green
             }
             catch 
             {
-                Write-Host(" - Failed")
+                Write-Host(" - Failed") -ForegroundColor Red
             }
 
         }

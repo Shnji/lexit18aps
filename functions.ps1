@@ -90,6 +90,7 @@
         Write-Host("`n")
     }
 }
+
 function Disconnect-Services()
 {
     Write-Host("----- Disconnecting from Online Services -----")
@@ -376,3 +377,91 @@ function Delete-FromRecycleBin()
         Write-Host("`n")
     }
 }
+
+function Create-Group($GroupName, $GroupType, $AccessType = "private")
+{     
+     
+     Write-Host("----- Create new Group -----")
+     
+     try
+     {
+         if(!($Group = Get-MsolGroup -All | where { $_.DisplayName -eq $GroupName } ))
+         {
+            try
+            {
+                Write-Host("- Creating new Group named $GroupName") -NoNewline 
+
+                switch($GroupType)
+                {
+                    "O365"  { $Group = New-UnifiedGroup -DisplayName $GroupName -Name $GroupName -AccessType $AccessType }
+                    "DL"    { $Group = New-DistributionGroup -Name $GroupName -Type Distribution }
+                    "MESG"  { $Group = New-DistributionGroup -Name $GroupName -Type Security }
+                    
+                    default { $Group = New-MsolGroup -DisplayName $GroupName }
+                }
+
+                Write-Host(" - Completed") -ForegroundColor Green
+            }
+            catch
+            {
+                Write-Host(" - Failed") -ForegroundColor Red
+                Write-Host($_.Exception.Message)
+            }
+         }
+         else
+         {
+            Write-Host("- Duplicate: ") -NoNewline -ForegroundColor Yellow
+            Write-Host("Group with DisplayName '$GroupName' already exits.")
+         }
+         
+         return $Group  
+    }
+    catch
+    {
+        Write-Host("Something went wrong when creating new group.")
+        #Skriv ut felmeddelandet till en log-fil
+    }
+    finally
+    {
+        Write-Host("`n")
+    } 
+}
+
+
+function Delete-Group($GroupName, $DeleteAll = $false)
+{
+    Write-Host("----- Deleting Group -----")
+     
+    try
+    {  
+        if($DeleteAll)
+        {
+            try
+            {
+                Write-Host("- Deleting all Groups") -NoNewline 
+                
+                Get-MsolGroup -All | Remove-MsolGroup -Force
+                
+                Write-Host(" - Completed") -ForegroundColor Green
+            }
+            catch
+            {
+                Write-Host(" - Failed") -ForegroundColor Red
+            }
+        }
+    }
+    catch
+    {
+        Write-Host("Something went wrong when deleting group.")
+        #Skriv ut felmeddelandet till en log-fil
+    }
+    finally
+    {
+        Write-Host("`n")
+    }   
+}
+
+
+Delete-Group -DeleteAll $true
+
+Get-MsolGroup

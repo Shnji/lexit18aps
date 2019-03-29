@@ -241,8 +241,37 @@ function Create-User($CsvPath, $Delimiter = ",", $StandardPassword = "BytMig123"
                     else
                     {
                         Write-Host("- Duplicate: ") -NoNewline -ForegroundColor Yellow
-                        Write-Host("User with UserPrincipalName '$UserPrincipalName' already exits.")
+                        Write-Host("User with UserPrincipalName '$UserPrincipalName' already exists.")
                     }
+
+
+                    # Create Department Group or Get Department Group
+                    try
+                    {
+                        if($u.Department -ne $null)
+                        {                        
+                            $Group = Create-Group -GroupName $Department -ShowTitle $false
+                        }
+                    }
+                    catch
+                    {
+                        
+                    }
+               
+
+                    # Add User to Department Group
+                    try
+                    {
+                        if($u -ne $null -and $Group -ne $null)
+                        {
+                            $temp = Add-UserToGroup -User $u -Group $Group -ShowTitle $false
+                        }
+                    }
+                    catch
+                    {
+                        
+                    }
+
                 }
                 catch
                 {
@@ -264,6 +293,7 @@ function Create-User($CsvPath, $Delimiter = ",", $StandardPassword = "BytMig123"
                     Remove-Variable Country -ErrorAction SilentlyContinue
                     Remove-Variable DisplayName -ErrorAction SilentlyContinue
                     Remove-Variable UserPrincipalName -ErrorAction SilentlyContinue
+                    write-host("");
                 }             
             }
        } 
@@ -335,7 +365,7 @@ function Delete-User($DeleteAll = $false, $RemoveRecycleBin = $false)
     }
     finally
     {
-        Write-Host("`n")
+        #Write-Host("`n")
     }
 }
 
@@ -378,11 +408,13 @@ function Delete-FromRecycleBin()
     }
 }
 
-function Create-Group($GroupName, $GroupType, $AccessType = "private")
+function Create-Group($GroupName, $GroupType, $AccessType = "private", $ShowTitle = $true)
 {     
-     
-     Write-Host("----- Create new Group -----")
-     
+     if($ShowTitle)
+     {
+        Write-Host("----- Create new Group -----")
+     }
+
      try
      {
          if(!($Group = Get-MsolGroup -All | where { $_.DisplayName -eq $GroupName } ))
@@ -410,8 +442,11 @@ function Create-Group($GroupName, $GroupType, $AccessType = "private")
          }
          else
          {
-            Write-Host("- Duplicate: ") -NoNewline -ForegroundColor Yellow
-            Write-Host("Group with DisplayName '$GroupName' already exits.")
+            if($ShowTitle)
+            {
+                Write-Host("- Duplicate: ") -NoNewline -ForegroundColor Yellow
+                Write-Host("Group with DisplayName '$GroupName' already exists.")
+            }
          }
          
          return $Group  
@@ -423,14 +458,21 @@ function Create-Group($GroupName, $GroupType, $AccessType = "private")
     }
     finally
     {
-        Write-Host("`n")
+        if($ShowTitle)
+        {
+            Write-Host("`n")
+        }
+        
+        
     } 
 }
 
-
-function Delete-Group($GroupName, $DeleteAll = $false)
+function Delete-Group($GroupName, $DeleteAll = $false, $ShowTitle = $true)
 {
-    Write-Host("----- Deleting Group -----")
+    if($ShowTitle)
+    {
+        Write-Host("----- Deleting Group -----")
+    }
      
     try
     {  
@@ -457,11 +499,90 @@ function Delete-Group($GroupName, $DeleteAll = $false)
     }
     finally
     {
-        Write-Host("`n")
+        if($ShowTitle)
+        {
+            Write-Host("`n")
+        }
     }   
 }
 
+function Add-UserToGroup($User, $Group, $GroupRole, $ShowTitle = $true)
+{     
+     if($ShowTitle)
+     {
+        Write-Host("----- Adding User to Group -----")
+     }
 
-Delete-Group -DeleteAll $true
+     try
+     {
+         if(!(Get-MsolGroupMember -GroupObjectId $Group.ObjectId | where { $_.EmailAddress -eq $User.UserPrincipalName }))
+         {
+            try
+            {
+                Write-Host("- Adding user {0} to Group {1}" -f $User.DisplayName, $Group.DisplayName) -NoNewline 
 
-Get-MsolGroup
+                switch($Group.GroupType)
+                {
+                    "Security"            { $Member = Add-MsolGroupMember -GroupObjectId $Group.ObjectId -GroupMemberObjectId $User.ObjectId -ErrorAction Stop }
+                    "MailEnabledSecurity" { $Member = Add-DistributionGroupMember -Identity $Group.DisplayName -Member $User.UserPrincipalName -ErrorAction Stop }
+                    "DistributionList"    
+                    { 
+                    
+                        if(!(Get-UnifiedGroup -Identity $Group.DisplayName -ErrorAction silentlyContinue))
+                        {
+                            $Member = Add-DistributionGroupMember -Identity $Group.DisplayName -Member $User.UserPrincipalName -ErrorAction Stop
+                        }
+                        else
+                        {
+                            switch($GroupRole)
+                            {
+                                "owner" 
+                                {
+                                    $Member = Add-UnifiedGroupLinks -LinkType Members -Identity $Group.DisplayName -Links $User.UserPrincipalName -ErrorAction Stop
+                                    $Member = Add-UnifiedGroupLinks -LinkType Owners -Identity $Group.DisplayName -Links $User.UserPrincipalName -ErrorAction Stop 
+                                }
+
+                                "subscriber" 
+                                {
+                                    $Member = Add-UnifiedGroupLinks -LinkType Subscribers -Identity $Group.DisplayName -Links $User.UserPrincipalName -ErrorAction Stop 
+                                }
+
+                                default 
+                                {
+                                    $Member = Add-UnifiedGroupLinks -LinkType Members -Identity $Group.DisplayName -Links $User.UserPrincipalName -ErrorAction Stop 
+                                }
+                            }
+                        }
+                    
+                    }
+                }
+
+
+                Write-Host(" - Completed") -ForegroundColor Green
+            }
+            catch
+            {
+                Write-Host(" - Failed") -ForegroundColor Red
+            }
+         }
+         else
+         {
+            Write-Host("- Duplicate: ") -NoNewline -ForegroundColor Yellow
+            Write-Host("User {0} is already a member of group {1}" -f $User.DisplayName, $Group.DisplayName)
+         }
+         
+         return $Group  
+    }
+    catch
+    {
+        Write-Host("Something went wrong when adding user to group.")
+        #Skriv ut felmeddelandet till en log-fil
+    }
+    finally
+    {
+        if($ShowTitle)
+        {
+            Write-Host("`n")
+        }
+    } 
+}

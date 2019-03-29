@@ -1,4 +1,23 @@
-﻿function Connect-Services() 
+﻿function log($Text, $FilePath)
+{
+    if($FilePath -eq $null)
+    {
+        if($Path -eq $null -or $Path -eq "") {
+            $Global:Path = "C:\PowerShell Logs\log $(Get-Date -Format "yyyyMMdd_HHmmss").log"
+        }      
+    }
+    else
+    {
+        $Path = $FilePath
+    }
+
+    if(!(Test-Path $Path)) { New-Item -ItemType File -Path $Path -Force | Out-Null }
+        
+    $Text = $(Get-Date -Format "yyyy-MM-dd HH:mm:ss:fff") + " :: " + $Text
+    $Text | Out-File -FilePath $Path -Append
+}
+
+function Connect-Services() 
 {
     cls
 
@@ -20,12 +39,17 @@
             #Install-Module Microsoft.Online.SharePoint.Powershell -ErrorAction Stop -WarningAction SilentlyContinue -Force
             #Install-Module AzureAD -ErrorAction Stop -WarningAction SilentlyContinue -Force
             Write-Host(" - Completed") -ForegroundColor Green
+
+            log -Text "Installing modules for Azure AD, MSOnline and SharePoint Online completed successfully"
         }
         catch 
         {
             Write-Host(" - Failed") -ForegroundColor Red
             Write-Host("ERROR: ") -NoNewline -ForegroundColor Red
-            write-Host($_.Exception.Message)
+
+            $error = $_.Exception.Message
+            log -Text "ERROR:: Installing modules for Azure AD, MSOnline and SharePoint Online failed. See error message below:"            
+            log -Text "ERROR:: $error"
         }
         finally
         {
@@ -42,10 +66,16 @@
                 Connect-MsolService -Credential $Cred_GlobalAdmin -ErrorAction Stop
                 $Global:TenantName = ((Get-MsolAccountSku).AccountSkuId).split(":")[0]
                 Write-Host(" - Completed") -ForegroundColor Green
+
+                log -Text "Connecting to Microsoft Online Services was successful"
             }
             catch
             {
                 Write-Host(" - Failed") -ForegroundColor Red
+                
+                $error = $_.Exception.Message
+                log -Text "ERROR:: Connecting to Microsoft Online Services was unsuccessful. See error message below:"
+                log -Text "ERROR:: $error"
             }    
 
             # 3.2 Exchange Online
@@ -57,10 +87,16 @@
                 
                 Import-PSSession $EXCH -AllowClobber -DisableNameChecking | Out-Null
                 Write-Host(" - Completed") -ForegroundColor Green
+
+                log -Text "Connecting to Microsoft Online Services was successful"
             }
             catch
             {
                 Write-Host(" - Failed") -ForegroundColor Red
+                
+                $error = $_.Exception.Message
+                log -Text "ERROR:: Connecting to Exchange Online was unsuccessful. See error message below:"
+                log -Text "ERROR:: $error"
             } 
 
             # 3.3 SharePoint Online
@@ -69,21 +105,35 @@
                 Write-Host("- Connecting to SharePoint Online") -NoNewline  
                 Connect-SPOService -Credential $Cred_GlobalAdmin -Url "https://$TenantName-admin.sharepoint.com" -ErrorAction stop
                 Write-Host(" - Completed") -ForegroundColor Green
+
+                log -Text "Connecting to SharePoint Online was successful"
             }
             catch
             {
                 Write-Host(" - Failed") -ForegroundColor Red
+
+                $error = $_.Exception.Message
+                log -Text "ERROR:: Connecting to SharePoint Online was unsuccessful. See error message below:"
+                log -Text "ERROR:: $error"
             }         
         }
         catch
         {
             Write-Host("Something went wrong when connecting to online services.")
+
+            $error = $_.Exception.Message
+            log -Text "ERROR:: Something went wrong when connecting to online services. See error message below:"
+            log -Text "ERROR:: $error"
         }
     }
     catch
     {
         Write-Host("Something went wrong when connecting to online services.")
         #Skriv ut felmeddelandet till en log-fil
+
+        $error = $_.Exception.Message
+        log -Text "ERROR:: Something went wrong when connecting to online services. See error message below:"
+        log -Text "ERROR:: $error"
     }
     finally
     {
@@ -236,12 +286,18 @@ function Create-User($CsvPath, $Delimiter = ",", $StandardPassword = "BytMig123"
                         catch
                         {
                             Write-Host(" - Failed") -ForegroundColor Red
+
+                            $error = $_.Exception.Message
+                            log -Text "ERROR:: Creating user $DisplayName - $UserPrincipalName was unsuccessful. See error message below:"            
+                            log -Text "ERROR:: $error"
                         }                                               
                     }
                     else
                     {
                         Write-Host("- Duplicate: ") -NoNewline -ForegroundColor Yellow
                         Write-Host("User with UserPrincipalName '$UserPrincipalName' already exists.")
+
+                        log -Text "User with UserPrincipalName '$UserPrincipalName' already exists."
                     }
 
 

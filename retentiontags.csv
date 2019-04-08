@@ -1,0 +1,5 @@
+﻿Name,AgeLimitForRetention,Type,RetentionAction,RetentionEnabled
+Junk Email 11 days,11,JunkEmail,DeleteAndAllowRecovery,true
+GDPR Delete after 7 years,2555,DeletedItems,DeleteAndAllowRecovery,true
+Deleted Items 14 days,14,All,DeleteAndAllowRecovery,true
+Default 1 year move to archive,365,All,MoveToArchive,true

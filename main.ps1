@@ -3,14 +3,18 @@
 #Module imports
 Import-Module "D:\Lexicon\ittek18a\lektion\functions.ps1" -Force
 
+#Connecting to Online Services
 #Connect-Services
-#Delete-User -DeleteAll $true -RemoveRecycleBin $true
-#Delete-Group -DeleteAll $true
-#Create-User -CsvPath "D:\Lexicon\ittek18a\lektion\users.csv" -Delimiter ";"
-#Create-Contact
-#Create-RetentionPolicy
 
-for($i = 0; $i -lt 20; $i++)
-{
-    Create-SharedMailbox -EmailAddress sharedmail$i@starstruckrr.se -EmailDisplayName "Shared Mail $i"
-}
+#Create-SharedMailbox -EmailAddress "info@starstruckrr.se" -EmailDisplayName "Startstruckrr"
+#Create-SharedMailbox -EmailAddress "support@starstruckrr.se" -EmailDisplayName "Support - Starstruckrr"
+#Create-SharedMailbox -EmailAddress "abuse@starstruckrr.se" -EmailDisplayName "Abuse"
+#Create-SharedMailbox -EmailAddress "sales@starstruckrr.se" -EmailDisplayName "Försäljning - Starstruckrr" 
+#Create-SharedMailbox -EmailAddress "invoice@starstruckrr.se" -EmailDisplayName "Fakturering - Starstruckrr"
+
+
+
+#Delete-User -DeleteAll $true -RemoveRecycleBin $true
+#Delete-Group -DeleteAll $true -RemoveRecycleBin $true
+Create-User -CsvPath D:\Lexicon\ittek18a\lektion\users.csv -Delimiter ";" -StandardPassword "BytMig123" -UsageLocation SE
+

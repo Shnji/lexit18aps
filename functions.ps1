@@ -145,7 +145,27 @@ function Connect-Services()
                 $error = $_.Exception.Message
                 log -Text "ERROR:: Connecting to SharePoint Online was unsuccessful. See error message below:"
                 log -Text "ERROR:: $error"
-            }         
+            } 
+            
+            # 3.4 SharePoint Online
+            try
+            {
+                Write-Host("- Connecting to Azure AD") -NoNewline  
+                
+                Connect-AzureAD -Credential $Cred_GlobalAdmin -ErrorAction Stop | Out-Null
+
+                Write-Host(" - Completed") -ForegroundColor Green
+
+                log -Text "Connecting to Azure AD was successful"
+            }
+            catch
+            {
+                Write-Host(" - Failed") -ForegroundColor Red
+
+                $error = $_.Exception.Message
+                log -Text "ERROR:: Connecting to Azure AD was unsuccessful. See error message below:"
+                log -Text "ERROR:: $error"
+            }          
         }
         catch
         {
@@ -247,6 +267,23 @@ function Disconnect-Services()
 	            log -Text "Disconnecting from SharePoint Online was unsuccessful. See error message below:"
 	            log -Text "ERROR:: $error"
             } 
+
+
+            # 2.5 Azure AD
+            try
+            {
+                Write-Host("- Disconnecting from Azure AD") -NoNewline  
+                Disconnect-AzureAD -ErrorAction Stop -WarningAction SilentlyContinue
+                Write-Host(" - Completed") -ForegroundColor Green
+            }
+            catch
+            {
+                Write-Host(" - Failed") -ForegroundColor Red
+
+                $error = $_.Exception.Message
+	            log -Text "Disconnecting from Azure AD was unsuccessful. See error message below:"
+	            log -Text "ERROR:: $error"
+            } 
         }
         catch
         {
@@ -284,7 +321,7 @@ function Create-User($CsvPath, $Delimiter = ",", $StandardPassword = "BytMig123"
             {
                 $FirstName     = $user.Förnamn
                 $LastName      = $user.Efternamn
-                $PersonalEmail = $user.'E-postadress'
+                if($user.'E-postadress' -ne $null) { $PersonalEmail = $user.'E-postadress' } else { $PersonalEmail = " " }
                 $Department    = $user.Avdelning
                 $JobTitle      = $user.Jobbtitel                
                 $Phone         = $user.Telefonnummer
@@ -349,12 +386,27 @@ function Create-User($CsvPath, $Delimiter = ",", $StandardPassword = "BytMig123"
                     }
 
 
+
+                    # Create JobRole Group or Get JobRole Group
+                    try
+                    {
+                        if($u.Title -ne $null)
+                        {                        
+                            $TitleGroup = Create-Group -GroupName $u.Title -ShowTitle $false
+                        }
+                    }
+                    catch
+                    {
+                        
+                    }
+
+
                     # Create Department Group or Get Department Group
                     try
                     {
                         if($u.Department -ne $null)
                         {                        
-                            $Group = Create-Group -GroupName $Department -ShowTitle $false
+                            $Group = Create-Group -GroupName $u.Department -ShowTitle $false
                         }
                     }
                     catch
@@ -363,12 +415,27 @@ function Create-User($CsvPath, $Delimiter = ",", $StandardPassword = "BytMig123"
                     }
                
 
-                    # Add User to Department Group
+                    # Add User to JobRole Group
                     try
                     {
-                        if($u -ne $null -and $Group -ne $null)
+                        if($u -ne $null -and $TitleGroup -ne $null)
                         {
-                            $temp = Add-UserToGroup -User $u -Group $Group -ShowTitle $false
+                            $titletemp = Add-UserToGroup -User $u -Group $TitleGroup -ShowTitle $false
+
+                        
+                        }
+                    }
+                    catch
+                    {
+                        
+                    }
+
+                    # Add JobRole to Department Group
+                    try
+                    {
+                        if($u -ne $null -and $TitleGroup -ne $null)
+                        {
+                            $departmenttemp = Add-GroupToGroup -FromGroup $TitleGroup -ToGroup $Group -ShowTitle $false
                         }
                     }
                     catch
@@ -383,6 +450,10 @@ function Create-User($CsvPath, $Delimiter = ",", $StandardPassword = "BytMig123"
                 }
                 finally
                 {
+                    Remove-Variable TitleGroup -ErrorAction SilentlyContinue
+                    Remove-Variable Group -ErrorAction SilentlyContinue
+                    Remove-Variable titletemp -ErrorAction SilentlyContinue
+                    Remove-Variable departmenttemp -ErrorAction SilentlyContinue          
                     Remove-Variable u -ErrorAction SilentlyContinue
                     Remove-Variable FirstName -ErrorAction SilentlyContinue
                     Remove-Variable LastName -ErrorAction SilentlyContinue
@@ -501,14 +572,7 @@ function Delete-FromRecycleBin()
             {
                 Write-Host("- Deleting objects in the recycle bin") -NoNewline   
 
-                Get-MsolUser -ReturnDeletedUsers | 
-                foreach 
-                {
-                    $logmessage = "Object {0} was successfully deleted from the recycle bin." -f $_.DisplayName
-                    Remove-MsolUser -RemoveFromRecycleBin -Force
-
-                    log -Text $logmessage
-                }
+                Get-MsolUser -ReturnDeletedUsers | Remove-MsolUser -RemoveFromRecycleBin -Force
                 
                 Write-Host(" - Completed") -ForegroundColor Green
             }
@@ -542,6 +606,56 @@ function Delete-FromRecycleBin()
     {
         Write-Host("`n")
     }
+}
+
+function Delete-Device($DeleteAll = $false, $ShowTitle = $true)
+{
+    if($ShowTitle)
+    {
+        Write-Host("----- Delete Registered Device -----")
+    }
+     
+    try
+    {  
+        if($DeleteAll)
+        {
+            try
+            {
+                Write-Host("- Deleting all Registered Devices") -NoNewline 
+                
+                Get-AzureADDevice | Remove-AzureADDevice
+                
+                Write-Host(" - Completed") -ForegroundColor Green
+                $logmessage = "Deleting all Registered Devices was successfully."
+                log -Text $logmessage      
+            }
+            catch
+            {
+                Write-Host(" - Failed") -ForegroundColor Red
+                
+                $logmessage = "Deleting all Registered Devices was unsuccessfully." -f $_.DisplayName       
+                $error = $_.Exception.Message
+	            log -Text "$logmessage. See error message below:"
+	            log -Text "ERROR:: $error"
+            }
+        }
+
+    }
+    catch
+    {
+        Write-Host("Something went wrong when deleting all Registered Devices.")
+        
+        $error = $_.Exception.Message
+	    log -Text "Something went wrong when deleting all Registered Devices. See error message below:"
+	    log -Text "ERROR:: $error"
+    }
+    finally
+    {
+        if($ShowTitle)
+        {
+            Write-Host("`n")
+        }
+    }   
 }
 
 function Create-Group($GroupName, $GroupType, $AccessType = "private", $ShowTitle = $true)
@@ -630,11 +744,11 @@ function Create-Group($GroupName, $GroupType, $AccessType = "private", $ShowTitl
     } 
 }
 
-function Delete-Group($GroupName, $DeleteAll = $false, $ShowTitle = $true)
+function Delete-Group($GroupName, $DeleteAll = $false, $RemoveRecycleBin = $false, $ShowTitle = $true)
 {
     if($ShowTitle)
     {
-        Write-Host("----- Deleting Group -----")
+        Write-Host("----- Delete Group -----")
     }
      
     try
@@ -661,6 +775,12 @@ function Delete-Group($GroupName, $DeleteAll = $false, $ShowTitle = $true)
 	            log -Text "ERROR:: $error"
             }
         }
+
+        if($RemoveRecycleBin)
+        {
+            Get-AzureADMSDeletedGroup | Remove-AzureADMSDeletedDirectoryObject 
+        }
+
     }
     catch
     {
@@ -807,6 +927,73 @@ function Add-UserToGroup($User, $Group, $GroupRole, $ShowTitle = $true)
     } 
 }
 
+function Add-GroupToGroup($FromGroup, $ToGroup, $ShowTitle = $true)
+{     
+     if($ShowTitle)
+     {
+        Write-Host("----- Adding Group to Group -----")
+     }
+
+     try
+     {
+
+         if(!(Get-MsolGroupMember -GroupObjectId $ToGroup.ObjectId | where { $_.DisplayName -eq $FromGroup.DisplayName }))
+         {
+            try
+            {
+                Write-Host("- Adding Group {0} to Group {1}" -f $FromGroup.DisplayName, $ToGroup.DisplayName) -NoNewline 
+
+                $Member = Add-MsolGroupMember -GroupObjectId $ToGroup.ObjectId -GroupMemberObjectId  $FromGroup.ObjectId -GroupMemberType Group -ErrorAction Stop 
+
+                $logmessage = "{0} was successfully added to the Security Group {1}." -f $FromGroup.DisplayName, $ToGroup.DisplayName
+                log -Text $logmessage          
+
+                Write-Host(" - Completed") -ForegroundColor Green
+
+            }
+            catch
+            {
+                Write-Host(" - Failed") -ForegroundColor Red
+
+                $addingmessage = "Adding group {0} to Group {1} was unsuccessful." -f $FromGroup.DisplayName, $ToGroup.DisplayName
+                $error = $_.Exception.Message
+                
+                log -Text "$addingmessage. See error message below:"
+                log -Text "ERROR:: $error"
+
+            }
+         }
+         else
+         {
+            $message = "Group {0} is already a member of group {1}." -f $FromGroup.DisplayName, $ToGroup.DisplayName
+
+            Write-Host("- Duplicate: ") -NoNewline -ForegroundColor Yellow
+            Write-Host($message)
+            
+            log -Text $message
+            Remove-Variable message
+
+         }
+         
+         return $Group  
+    }
+    catch
+    {
+        Write-Host("Something went wrong when adding user to group.")
+        
+        $error = $_.Exception.Message
+        log -Text "Something went wrong when adding user to group. See error message below:"
+        log -Text "ERROR:: $error"
+    }
+    finally
+    {
+        if($ShowTitle)
+        {
+            Write-Host("`n")
+        }
+    } 
+}
+
 function Create-Contact($ShowTitle = $true) 
 {
     if($ShowTitle)
@@ -877,6 +1064,60 @@ function Create-Contact($ShowTitle = $true)
             Write-Host("`n")
         }
     } 
+}
+
+function Delete-Contact($DeleteAll = $false, $ShowTitle = $true)
+{
+
+
+    if($ShowTitle)
+    {
+        Write-Host("----- Delete Contact -----")
+    }
+
+    try
+    {
+        if($DeleteAll)
+        {
+            try
+            {           
+            
+                Write-Host("- Deleting all contacts") -NoNewline   
+                Get-MsolContact -All | Remove-MsolContact -Force
+
+
+                Write-Host(" - Completed") -ForegroundColor Green
+                log -Text "Deleting all contacts was successful"
+            }
+            catch
+            {
+                Write-Host(" - Failed") -ForegroundColor Red
+
+                $error = $_.Exception.Message
+                log -Text "ERROR:: Deleting all contacts was unsuccessful. See error message below:"            
+                log -Text "ERROR:: $error"
+            } 
+        } 
+        
+    }
+
+    catch
+    {
+        Write-Host("Something went wrong when creating new contact.")
+        
+        $error = $_.Exception.Message
+        log -Text "Something went wrong when creating new contact. See error message below:"
+        log -Text "ERROR:: $error"
+    }
+
+    finally
+    {
+        if($ShowTitle)
+        {
+            Write-Host("`n")
+        }
+    } 
+
 }
 
 function Create-RetentionPolicy($Department, $ShowTitle = $true) 
@@ -1042,4 +1283,70 @@ function Create-SharedMailbox($EmailAddress, $EmailDisplayName, $ShowTitle = $tr
             Write-Host("`n")
         }
     } 
+}
+
+function Delete-License($DeleteAll = $false, $ShowTitle = $true)
+{
+
+
+    if($ShowTitle)
+    {
+        Write-Host("----- Delete Licence for User -----")
+    }
+
+    try
+    {
+        if($DeleteAll)
+        {
+            try
+            {           
+            
+                Write-Host("- Deleting all Licences for all Users") -NoNewline   
+                
+                $licences = (Get-MsolAccountSku).AccountSkuId
+                $users = Get-MsolUser -all | where { $_.isLicensed -eq $true }
+                 
+                # loopar igenom alla användare och för varje användare tar den bort licenser 
+                foreach($user in $users)
+                {
+                    # här loopar den igenom alla våra licenser vi har och tar bort varje licens för den aktuella användaren i loopen
+                    foreach($license in $licences)
+                    {
+                       Set-MsolUserLicense -UserPrincipalName $user.UserPrincipalName -RemoveLicenses $license -ErrorAction SilentlyContinue
+                    }
+                }
+
+
+                Write-Host(" - Completed") -ForegroundColor Green
+                log -Text "Deleting all Licences for all Users was successful"
+            }
+            catch
+            {
+                Write-Host(" - Failed") -ForegroundColor Red
+
+                $error = $_.Exception.Message
+                log -Text "ERROR:: Deleting all Licences for all Users was unsuccessful. See error message below:"            
+                log -Text "ERROR:: $error"
+            } 
+        } 
+        
+    }
+
+    catch
+    {
+        Write-Host("Something went wrong when deleting all Licences for user.")
+        
+        $error = $_.Exception.Message
+        log -Text "Something went wrong when deleting all Licences for user. See error message below:"
+        log -Text "ERROR:: $error"
+    }
+
+    finally
+    {
+        if($ShowTitle)
+        {
+            Write-Host("`n")
+        }
+    } 
+
 }
